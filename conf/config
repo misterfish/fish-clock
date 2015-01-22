@@ -1,0 +1,107 @@
+[_default]
+
+# Can't override -- only in main conf.
+user = fritz 
+
+height = 850
+width = 850
+
+xres = 1024
+
+animate-interval = 10
+socket-path = /tmp/.fishclock-socket
+
+# hour-fix = 8
+# min-fix = 30
+
+# 0 <-> 1
+opacity = .8
+
+stroke-width-circle = 2
+stroke-width-ticks = 2
+stroke-width-hands = 3
+
+delta-theta-ticks = .5
+delta-theta-hands = 5
+
+# total
+active-ms = 4500
+
+# 11 is a normal clock.
+#num-ticks = 11
+num-ticks = 12
+major-ticks-every = 3
+
+# as perc of radius
+hand-length-major = .4
+hand-length-minor = .6
+
+tick-length-major = 8
+tick-length-minor = 4
+
+num-frames-in = 30
+num-frames-out = 10
+radius = 70
+
+# num minutes before real time for batclock
+#random-min = 320
+
+do-wave = 1
+
+# wave stretcher. 1 is simply t squared.
+# stretch_factor = .5
+# stretch_factor = 1.2
+stretch-factor = .5
+radius-min = 10
+
+color-ticks-1 = 0,0,0
+color-ticks-2 = .75, .1, .1
+
+color-fill = 0,0,.2
+color-ticks-filled-1 = 0,0,0
+color-ticks-filled-2 = .85, .8, .8
+
+color-circle-1 = 0,0,0
+color-circle-2 = .75, .1, .1
+color-circle-2-filled = .8, .8, .8
+color-circle-1-filled = 0, 0, .2
+
+circle-2-x-shift = 1.5
+circle-2-delta-radius = 1
+
+fill-on-zoom-in = 0
+fill-on-zoom-out = 0
+
+color-hands-1 = 0,0,0
+# kinda yello
+color-hands-2 = .8,.7,.1
+color-hands-1-filled = 0,0,0
+color-hands-2-filled = .8, .7, .1
+
+[casio]
+num-frames-in = 30
+num-frames-out = 5
+animate-interval = 5 
+
+#radius = 390
+#radius = 590 # bigger than width -> square clock
+radius = 90
+
+random-min = 0
+
+do-wave = 1
+stretch-factor = .1
+radius-min = 30
+fill-on-zoom-in = 1
+fill-on-zoom-out = 0
+
+[lonesome]
+num-frames-in = 20
+num-frames-out = 5
+animate-interval = 10
+fill-on-zoom-in = 0
+
+circle-2-x-shift = .75
+
+
+# vim: isk=@,48-57,_,192-255,45

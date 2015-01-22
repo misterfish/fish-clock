@@ -1,0 +1,2 @@
+config -> <home/.fish-clock-config
+config-base -> /usr/share/fish-clock/config

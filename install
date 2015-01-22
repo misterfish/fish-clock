@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd fish_clock_xs
+perl Makefile.PL && make && sudo make install

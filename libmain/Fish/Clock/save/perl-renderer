@@ -1,0 +1,193 @@
+sub renderer {
+    my ($self, $cr) = @_;
+
+main::bench_start 'renderer-all';
+
+main::bench_start 'renderer1';
+
+    defined $hour or return;
+    defined $min or return;
+    defined $sec or return;
+
+    my $h = $self->_height;
+    my $w = $self->_width;
+
+    my $fill = $self->_do_fill;
+
+    # Frame
+    if (DRAW_FRAME) {
+        $cr->set_source_rgba(0,1,0,$TRANSPARENCY);
+
+        my $stroke = 1;
+
+        $cr->set_line_width($stroke);
+        $cr->move_to(0,0);
+        $cr->line_to($w - $stroke,0);
+        $cr->line_to($w - $stroke, $h - $stroke);
+        $cr->line_to(0, $h - $stroke);
+        $cr->line_to(0,0);
+
+        $cr->stroke;
+
+        if (DEBUG) {
+            say sprintf "%.1f,%.1f / %.1f,%.1f / %.1f,%.1f / %.1f,%.1f / %.1f,%.1f ",
+            0,0,
+            $w - $stroke,0,
+            $w - $stroke, $h - $stroke,
+            0, $h - $stroke,
+            0,0;
+        }
+    }
+
+main::bench_end 'renderer1';
+main::bench_start 'renderer2.1';
+
+main::bench_start 'renderer2.1-methods';
+    my $tr = $self->_transparency;
+main::bench_end 'renderer2.1-methods';
+    my ($col, $col2);
+
+    # circles
+    # xc, yc, radius, angle1, angle2
+
+main::bench_start 'renderer2.1-methods';
+    my $radius = $self->_radius;
+main::bench_end 'renderer2.1-methods';
+    $cr->set_line_width($STROKE_WIDTH_CIRCLE);
+
+main::bench_start 'renderer2.1-methods';
+    $col = $self->_color_circle_1;
+main::bench_end 'renderer2.1-methods';
+
+    $cr->set_source_rgba (@$col, $tr);
+    $cr->arc($w / 2, $h / 2, $radius, 0, 2 * pi);
+
+    if ($fill) {
+        $cr->stroke_preserve;
+        $cr->fill_preserve; #why? XX
+    }
+    else {
+        $cr->stroke;
+    }
+
+main::bench_end 'renderer2.1';
+main::bench_start 'renderer2.2';
+    $col = $self->_color_circle_2;
+    $cr->set_source_rgba (@$col, $tr);
+    $cr->arc($w / 2, $h / 2, $radius + 1, 0, 2 * pi);
+
+    if ($fill) {
+        $cr->stroke_preserve;
+        $cr->set_source_rgba (list $self->_color_fill, $tr);
+        $cr->fill_preserve;
+    }
+    else {
+        $cr->stroke;
+    }
+
+    my $xc = $w / 2;
+    my $yc = $h / 2;
+
+main::bench_end 'renderer2.2';
+
+main::bench_start 'renderer3';
+
+    # ticks
+
+    if (! $self->_zooming) {
+        $cr->set_line_width($STROKE_WIDTH_TICKS);
+
+        for my $i (1 .. 12) {
+            my $theta = deg 30 * $i;
+
+            my @do = ([$theta, $fill ? cr_list 'color-ticks-filled-1' : cr_list 'color-ticks-1']);
+
+            push @do, [$theta + deg($DELTA_THETA_TICKS), $fill ? cr_list 'color-ticks-filled-2' : cr_list 'color-ticks-2'] unless $self->_zooming;
+
+            for (@do) {
+                my ($th, $col) = @$_;
+
+                $cr->set_source_rgba (@$col, $TRANSPARENCY);
+
+                my $o_clock = (3 - $i) % 12;
+                $o_clock ||= 12;
+
+                my $tick_length = is_multiple($o_clock, 3) ? 
+                    $TICK_LENGTH_MAJOR : 
+                    $TICK_LENGTH_MINOR;
+
+                my $end_x = $xc + $radius * cos $th;
+                my $end_y = $yc - $radius * sin $th;
+
+                my $start_x = $end_x - $tick_length * cos $th;
+                my $start_y = $end_y + $tick_length * sin $th;
+
+                $cr->move_to($start_x, $start_y);
+                $cr->line_to($end_x, $end_y);
+                $cr->stroke;
+            }
+        }
+    }
+
+main::bench_end 'renderer3';
+main::bench_start 'renderer4';
+
+    # hands
+    if (! $self->_zooming || GROW_HANDS) {
+
+        $cr->set_line_width($STROKE_WIDTH_HANDS);
+        
+        my $min = $self->_min_override // $min;
+        my $hour = $self->_hour_override // $hour;
+
+        my $hour_as_fraction = $hour + $min / 60;
+        my $min_as_fraction = $min + $sec / 60;
+
+        my $theta_hr = deg(90) - deg 30 * $hour_as_fraction;
+        my $theta_min = deg(90) - deg 30 * $min_as_fraction / 5; # 60 / 12 = 5
+
+        my $start_x = $xc;
+        my $start_y = $yc;
+
+        # Could be done outside renderer XX
+        $col = $fill ?  cr_list 'color-hands-1-filled' : cr_list 'color-hands-1';
+        $col2 = $fill ? cr_list 'color-hands-2-filled' : cr_list 'color-hands-2';
+
+        for (
+            [$theta_hr, $self->_hand_length_major, $col],
+            [$theta_hr + deg($DELTA_THETA_HANDS), $self->_hand_length_major, $col2],
+            [$theta_min, $self->_hand_length_minor, $col],
+            [$theta_min + deg($DELTA_THETA_HANDS), $self->_hand_length_minor, $col2],
+        )
+        {
+
+            my ($theta, $length, $color) = @$_;
+
+            $cr->set_source_rgba (@$color, $tr);
+
+            my $end_x_extended = $xc + $radius * cos $theta;
+            my $end_y_extended = $yc - $radius * sin $theta;
+
+            my $end_x = $start_x + ($end_x_extended - $start_x) * $length;
+            my $end_y = $start_y + ($end_y_extended - $start_y) * $length;
+
+            $cr->move_to($xc, $yc);
+            $cr->line_to($end_x, $end_y);
+            $cr->stroke;
+        }
+    }
+
+    if (TEST_TEXT) {
+        $cr->move_to($w/2,$h/2);
+        $cr->select_font_face ('sans', 'normal', 'normal');
+        $cr->set_font_size ($__font_size);
+        $cr->show_text('allen');
+    }
+
+main::bench_end 'renderer4';
+
+main::bench_end 'renderer-all';
+
+}
+
+
