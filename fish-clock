@@ -25,16 +25,13 @@ BEGIN {
     $script_name = basename $0;
     $top_dir = dirname realpath $0;
 
-    $libmain_dir = $top_dir . '/libmain';
-    $libfish_dir = $top_dir . '/libextra/fish-lib-perl';
-    unshift @INC, $_ for $libmain_dir, $libfish_dir;
+    my $libmain_dir = $top_dir . '/libmain';
 
+    unshift @INC, $libmain_dir;
+    unshift @INC, $top_dir . '/libextra/fish-lib-perl';
     unshift @INC, $libmain_dir . '/fish_clock_xs/lib';
-    my @blib = qw,
-        fish_clock_xs/blib/lib/auto/fish_clock_xs
-        fish_clock_xs/blib/arch/auto/fish_clock_xs
-    ,;
-    unshift @INC, "$libmain_dir/$_" for @blib;
+    unshift @INC, $libmain_dir . '/fish_clock_xs/blib/lib/auto/fish_clock_xs';
+    unshift @INC, $libmain_dir . '/fish_clock_xs/blib/arch/auto/fish_clock_xs';
 
     $0 = $BIN_NAME;
 }
@@ -106,7 +103,7 @@ my $user = Fish::Clock::Conf->pre_init($MAIN_CONF);
 my $name = change_user($user);
 my $home = home($name);
 
-s/__HOME__/$home/g for @CONF_FILES;
+s, __HOME__ ,$home,gx for @CONF_FILES;
 
 info('change to user:', $user) if DEBUG;
 info('name', $name) if DEBUG;
@@ -322,14 +319,17 @@ sub change_user {
     my ($u) = @_;
     my ($name, $id);
     if ($u !~ /\D/) {
-        $name = getpwuid($u) // error "Can't find uid", R $u;
+        $name = getpwuid($u) // 
+            error "Can't find uid", R $u;
         $id = $u;
     }
     else {
-        $id = getpwnam($u) // error "Can't find user", R $u;
+        $id = getpwnam($u) // 
+            error "Can't find user", R $u;
         $name = $u;
     }
-    setuid($id) // error sprintf "Can't change uid to %s: %s", R $id, $!;
+    setuid($id) // 
+        error sprintf "Can't change uid to %s: %s", R $id, $!;
     infof "Changed user -> %s [%s]", CY $id, G $name;
     return $name;
 }
