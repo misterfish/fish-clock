@@ -25,7 +25,7 @@
 
 # --- MakeMaker const_config section:
 
-# These definitions are from config.sh (via /usr/lib/i386-linux-gnu/perl/5.20/Config.pm).
+# These definitions are from config.sh (via /usr/lib/x86_64-linux-gnu/perl/5.20/Config.pm).
 # They may have been overridden via Makefile.PL or on the command line.
 AR = ar
 CC = cc
@@ -44,10 +44,10 @@ OBJ_EXT = .o
 OSNAME = linux
 OSVERS = 3.2.0-4-amd64
 RANLIB = :
-SITELIBEXP = /usr/local/share/perl/5.20.0
-SITEARCHEXP = /usr/local/lib/i386-linux-gnu/perl/5.20.0
+SITELIBEXP = /usr/local/share/perl/5.20.1
+SITEARCHEXP = /usr/local/lib/x86_64-linux-gnu/perl/5.20.1
 SO = so
-VENDORARCHEXP = /usr/lib/i386-linux-gnu/perl5/5.20
+VENDORARCHEXP = /usr/lib/x86_64-linux-gnu/perl5/5.20
 VENDORLIBEXP = /usr/share/perl5
 
 
@@ -80,15 +80,15 @@ SITEPREFIX = $(PREFIX)/local
 VENDORPREFIX = $(PREFIX)
 INSTALLPRIVLIB = $(PERLPREFIX)/share/perl/5.20
 DESTINSTALLPRIVLIB = $(DESTDIR)$(INSTALLPRIVLIB)
-INSTALLSITELIB = $(SITEPREFIX)/share/perl/5.20.0
+INSTALLSITELIB = $(SITEPREFIX)/share/perl/5.20.1
 DESTINSTALLSITELIB = $(DESTDIR)$(INSTALLSITELIB)
 INSTALLVENDORLIB = $(VENDORPREFIX)/share/perl5
 DESTINSTALLVENDORLIB = $(DESTDIR)$(INSTALLVENDORLIB)
-INSTALLARCHLIB = $(PERLPREFIX)/lib/i386-linux-gnu/perl/5.20
+INSTALLARCHLIB = $(PERLPREFIX)/lib/x86_64-linux-gnu/perl/5.20
 DESTINSTALLARCHLIB = $(DESTDIR)$(INSTALLARCHLIB)
-INSTALLSITEARCH = $(SITEPREFIX)/lib/i386-linux-gnu/perl/5.20.0
+INSTALLSITEARCH = $(SITEPREFIX)/lib/x86_64-linux-gnu/perl/5.20.1
 DESTINSTALLSITEARCH = $(DESTDIR)$(INSTALLSITEARCH)
-INSTALLVENDORARCH = $(VENDORPREFIX)/lib/i386-linux-gnu/perl5/5.20
+INSTALLVENDORARCH = $(VENDORPREFIX)/lib/x86_64-linux-gnu/perl5/5.20
 DESTINSTALLVENDORARCH = $(DESTDIR)$(INSTALLVENDORARCH)
 INSTALLBIN = $(PERLPREFIX)/bin
 DESTINSTALLBIN = $(DESTDIR)$(INSTALLBIN)
@@ -115,13 +115,13 @@ DESTINSTALLSITEMAN3DIR = $(DESTDIR)$(INSTALLSITEMAN3DIR)
 INSTALLVENDORMAN3DIR = $(VENDORPREFIX)/share/man/man3
 DESTINSTALLVENDORMAN3DIR = $(DESTDIR)$(INSTALLVENDORMAN3DIR)
 PERL_LIB = /usr/share/perl/5.20
-PERL_ARCHLIB = /usr/lib/i386-linux-gnu/perl/5.20
+PERL_ARCHLIB = /usr/lib/x86_64-linux-gnu/perl/5.20
 LIBPERL_A = libperl.a
 FIRST_MAKEFILE = Makefile
 MAKEFILE_OLD = Makefile.old
 MAKE_APERL_FILE = Makefile.aperl
 PERLMAINCC = $(CC)
-PERL_INC = /usr/lib/i386-linux-gnu/perl/5.20/CORE
+PERL_INC = /usr/lib/x86_64-linux-gnu/perl/5.20/CORE
 PERL = /usr/bin/perl
 FULLPERL = /usr/bin/perl
 ABSPERL = $(PERL)
@@ -208,7 +208,7 @@ AUTOSPLITFILE = $(ABSPERLRUN)  -e 'use AutoSplit;  autosplit($$$$ARGV[0], $$$$AR
 
 # --- MakeMaker tool_xsubpp section:
 
-XSUBPPDIR = /usr/share/perl/5.20.0/ExtUtils
+XSUBPPDIR = /usr/share/perl/5.20.1/ExtUtils
 XSUBPP = $(XSUBPPDIR)$(DFSEP)xsubpp
 XSUBPPRUN = $(PERLRUN) $(XSUBPP)
 XSPROTOARG = 
@@ -506,7 +506,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(OBJECT) $(MAKEFILE_OLD) \
+	  $(MAKEFILE_OLD) $(OBJECT) \
 	  $(FIRST_MAKEFILE) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
@@ -524,7 +524,7 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) 'configure_requires:' >> META_new.yml
 	$(NOECHO) $(ECHO) '  ExtUtils::MakeMaker: '\''0'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) 'dynamic_config: 1' >> META_new.yml
-	$(NOECHO) $(ECHO) 'generated_by: '\''ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.142060'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'generated_by: '\''ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.142690'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) 'license: unknown' >> META_new.yml
 	$(NOECHO) $(ECHO) 'meta-spec:' >> META_new.yml
 	$(NOECHO) $(ECHO) '  url: http://module-build.sourceforge.net/META-spec-v1.4.html' >> META_new.yml
@@ -544,7 +544,7 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) '      "unknown"' >> META_new.json
 	$(NOECHO) $(ECHO) '   ],' >> META_new.json
 	$(NOECHO) $(ECHO) '   "dynamic_config" : 1,' >> META_new.json
-	$(NOECHO) $(ECHO) '   "generated_by" : "ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.142060",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "generated_by" : "ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.142690",' >> META_new.json
 	$(NOECHO) $(ECHO) '   "license" : [' >> META_new.json
 	$(NOECHO) $(ECHO) '      "unknown"' >> META_new.json
 	$(NOECHO) $(ECHO) '   ],' >> META_new.json
@@ -764,7 +764,7 @@ ppd :
 	$(NOECHO) $(ECHO) '    <ABSTRACT></ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR></AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="i586-linux-gnu-thread-multi-64int-5.20" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="x86_64-linux-gnu-thread-multi-5.20" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    </IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '</SOFTPKG>' >> $(DISTNAME).ppd
@@ -783,7 +783,7 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 # ABSPERLRUN => q[$(ABSPERL)]
 # ABSPERLRUNINST => q[$(ABSPERLRUN) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)"]
 # AR => q[ar]
-# ARGS => { NAME=>q[fish_clock_xs::fish_clock_xs], SKIP=>[q[all], q[static], q[static_lib], q[dynamic], q[dynamic_lib]], clean=>{ FILES=>q[libfish_clock_xs$(LIB_EXT)] }, INC=>q[-I. -I/usr/include/cairo -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/libdrm] }
+# ARGS => { NAME=>q[fish_clock_xs::fish_clock_xs], clean=>{ FILES=>q[libfish_clock_xs$(LIB_EXT)] }, SKIP=>[q[all], q[static], q[static_lib], q[dynamic], q[dynamic_lib]], INC=>q[-I. -I/usr/include/cairo -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/libdrm] }
 # AR_STATIC_ARGS => q[cr]
 # BASEEXT => q[fish_clock_xs]
 # BOOTDEP => q[]
@@ -850,20 +850,20 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 # H => [q[fish-util.h], q[xsH.h], q[xs_render.h]]
 # HAS_LINK_CODE => q[1]
 # INC => q[-I. -I/usr/include/cairo -I/usr/include/glib-2.0 -I/usr/lib/i386-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/libdrm]
-# INSTALLARCHLIB => q[$(PERLPREFIX)/lib/i386-linux-gnu/perl/5.20]
+# INSTALLARCHLIB => q[$(PERLPREFIX)/lib/x86_64-linux-gnu/perl/5.20]
 # INSTALLBIN => q[$(PERLPREFIX)/bin]
 # INSTALLDIRS => q[site]
 # INSTALLMAN1DIR => q[$(PERLPREFIX)/share/man/man1]
 # INSTALLMAN3DIR => q[$(PERLPREFIX)/share/man/man3]
 # INSTALLPRIVLIB => q[$(PERLPREFIX)/share/perl/5.20]
 # INSTALLSCRIPT => q[$(PERLPREFIX)/bin]
-# INSTALLSITEARCH => q[$(SITEPREFIX)/lib/i386-linux-gnu/perl/5.20.0]
+# INSTALLSITEARCH => q[$(SITEPREFIX)/lib/x86_64-linux-gnu/perl/5.20.1]
 # INSTALLSITEBIN => q[$(SITEPREFIX)/bin]
-# INSTALLSITELIB => q[$(SITEPREFIX)/share/perl/5.20.0]
+# INSTALLSITELIB => q[$(SITEPREFIX)/share/perl/5.20.1]
 # INSTALLSITEMAN1DIR => q[$(SITEPREFIX)/man/man1]
 # INSTALLSITEMAN3DIR => q[$(SITEPREFIX)/man/man3]
 # INSTALLSITESCRIPT => q[$(SITEPREFIX)/bin]
-# INSTALLVENDORARCH => q[$(VENDORPREFIX)/lib/i386-linux-gnu/perl5/5.20]
+# INSTALLVENDORARCH => q[$(VENDORPREFIX)/lib/x86_64-linux-gnu/perl5/5.20]
 # INSTALLVENDORBIN => q[$(VENDORPREFIX)/bin]
 # INSTALLVENDORLIB => q[$(VENDORPREFIX)/share/perl5]
 # INSTALLVENDORMAN1DIR => q[$(VENDORPREFIX)/share/man/man1]
@@ -931,9 +931,9 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 # PERLTYPE => q[]
 # PERL_ARCHIVE => q[]
 # PERL_ARCHIVE_AFTER => q[]
-# PERL_ARCHLIB => q[/usr/lib/i386-linux-gnu/perl/5.20]
+# PERL_ARCHLIB => q[/usr/lib/x86_64-linux-gnu/perl/5.20]
 # PERL_CORE => q[0]
-# PERL_INC => q[/usr/lib/i386-linux-gnu/perl/5.20/CORE]
+# PERL_INC => q[/usr/lib/x86_64-linux-gnu/perl/5.20/CORE]
 # PERL_LIB => q[/usr/share/perl/5.20]
 # PERL_MALLOC_DEF => q[-DPERL_EXTMALLOC_DEF -Dmalloc=Perl_malloc -Dfree=Perl_mfree -Drealloc=Perl_realloc -Dcalloc=Perl_calloc]
 # PERL_SRC => undef
@@ -954,10 +954,10 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 # RM_RF => q[rm -rf]
 # SHAR => q[shar]
 # SHELL => q[/bin/sh]
-# SITEARCHEXP => q[/usr/local/lib/i386-linux-gnu/perl/5.20.0]
-# SITELIBEXP => q[/usr/local/share/perl/5.20.0]
+# SITEARCHEXP => q[/usr/local/lib/x86_64-linux-gnu/perl/5.20.1]
+# SITELIBEXP => q[/usr/local/share/perl/5.20.1]
 # SITEPREFIX => q[$(PREFIX)/local]
-# SKIPHASH => { dist_ci=>q[1], static=>q[1], distdir=>q[1], dist_basics=>q[1], all=>q[1], dist_core=>q[1], dist_test=>q[1], dynamic=>q[1], install=>q[1], dist=>q[1], dynamic_lib=>q[1], static_lib=>q[1] }
+# SKIPHASH => { static=>q[1], dist_core=>q[1], static_lib=>q[1], dist_basics=>q[1], dist_test=>q[1], dynamic_lib=>q[1], distdir=>q[1], all=>q[1], dist_ci=>q[1], dynamic=>q[1], install=>q[1], dist=>q[1] }
 # SO => q[so]
 # SUFFIX => q[.gz]
 # TAR => q[tar]
@@ -972,7 +972,7 @@ pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 # UNINST => q[0]
 # UNINSTALL => q[$(ABSPERLRUN) -MExtUtils::Command::MM -e 'uninstall' --]
 # USEMAKEFILE => q[-f]
-# VENDORARCHEXP => q[/usr/lib/i386-linux-gnu/perl5/5.20]
+# VENDORARCHEXP => q[/usr/lib/x86_64-linux-gnu/perl5/5.20]
 # VENDORLIBEXP => q[/usr/share/perl5]
 # VENDORPREFIX => q[$(PREFIX)]
 # VERBINST => q[0]
