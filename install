@@ -2,6 +2,7 @@ git submodule init
 git submodule update --remote --recursive
 cd libmain/fish_clock_xs
 perl Makefile.PL && make 
+cd ../..
 
 # FIXME, this sucks
 sudo mkdir /usr/share/fish-clock -p
