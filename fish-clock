@@ -1,13 +1,15 @@
 #!/usr/bin/env perl
 
+# --- if -f is given, we stay in the foreground.
+#
+# otherwise we fork, so that 'fish-clock' from the command line goes straight to the background.
+#
+# in that case, we do as much prep work as possible before forking.  
+#
+# then, the clock thread is spawned, which has its own ticker to keep the
+# time updated, and syncs with the system clock every minute by default.
+
 use 5.18.0;
-
-=head
-
-Forked as late as possible, unless -f is given.
-Then, clock thread is detached.
-
-=cut
 
 package main;
 
@@ -39,7 +41,8 @@ BEGIN {
 use threads;
 use threads::shared;
 
-$SIG{INT} = $SIG{TERM} = $SIG{KILL} = sub { exit };
+# --- force END block on Ctl-c / kill.
+$SIG{INT} = $SIG{TERM} = sub { exit };
 
 use Glib;
 
@@ -49,11 +52,16 @@ use POSIX 'setuid';
 
 use constant BENCHMARK => 0;
 
-# Allow being called from outside with -Mconstant=DEBUG,1
-# and if that's not there, compile away DEBUG blocks.
+# --- compile away DEBUG blocks unless we're not invoked with
+# -Mconstant=DEBUG,1
+#
+# just like 'use constant DEBUG => 0' but conditional.
+
 use if ! defined &DEBUG, 'constant',  DEBUG => 0;
 
 use if DEBUG, 'Fish::Utility_m' => 'd';
+
+sub forkk;
 
 sub bench_start(_)  { if (BENCHMARK) { return Fish::Clock::Utility::bench_start(@_) } }
 sub bench_end(_)    { if (BENCHMARK) { return Fish::Clock::Utility::bench_end(@_) } }
@@ -63,17 +71,40 @@ sub bench_pr(_)     { if (BENCHMARK) { return Fish::Clock::Utility::bench_pr(@_)
 use Fish::Opt 'opt';
 use Fish::Utility;
 Fish::Utility->verbose_cmds(0);
-use Fish::Utility_m qw, is_multiple ,;
+use Fish::Utility_l 'list';
+use Fish::Utility_m 'is_multiple';
 use Fish::Class 'o';
 use Fish::Socket::Server::unix;
 
 use Fish::Clock::Conf 'cr';
 
-# Old: Clock needs to be used after debug level is set (because of threads). 
-# And it has to be sure that there is an X server somewhere or else libaosd splatters.
-my @LATE_USE = qw,
-    Fish::Clock::Clock
-,;
+my $config = o(
+    # --- modules to require later (at runtime).
+    #
+    # Fish::Clock::Clock is here because we have to be sure that there is an
+    # X server somewhere (or else libaosd splatters).
+
+    late_use => [
+        'Fish::Clock::Clock',
+    ],
+
+    required_conf => [
+        'socket-path',
+        'active-ms',
+    ],
+
+    main_conf => '/usr/share/fish-clock/config',
+
+    conf_files => undef,
+
+    x_sleep => 1,
+
+);
+
+$config->conf_files([
+    $config->main_conf,
+    "__HOME__/.fish-clock-config",
+]);
 
 my $opt = opt {
     h   => 'f',
@@ -82,38 +113,23 @@ my $opt = opt {
     l   => 'f',
 } or error help();
 
-info(help()), exit if $opt->h;
+info(help()),
+    exit if $opt->h;
 
 Fish::Utility->info_level($opt->v ? 1 : 0);
 
-my $HOME = $ENV{HOME};
-
-my @REQUIRED_CONF = qw, socket-path active-ms ,;
-my $MAIN_CONF = '/usr/share/fish-clock/config';
-my @CONF_FILES = (
-    $MAIN_CONF,
-    "__HOME__/.fish-clock-config",
-);
-
-my $X_SLEEP = 1;
-
+# --- die if there are other instances running.
 check_unique();
 
-my $user = Fish::Clock::Conf->pre_init($MAIN_CONF);
-my $name = change_user($user);
-my $home = home($name);
+# --- get username based on main config, call setuid(), and update __HOME__
+# placeholders in config.
 
-s, __HOME__ ,$home,gx for @CONF_FILES;
-
-info('change to user:', $user) if DEBUG;
-info('name', $name) if DEBUG;
-info('home', $home) if DEBUG;
-info('@CONF_FILES:', d(\@CONF_FILES)) if DEBUG;
+update_uid_and_home();
 
 Fish::Clock::Conf->init({
-    required => \@REQUIRED_CONF,
-    conf_files => \@CONF_FILES,
-    dump        => $opt->L,
+    required    => $config->required_conf,
+    conf_files  => $config->conf_files,
+    dump        => $opt->l,
 });
 
 exit if $opt->l;
@@ -126,75 +142,31 @@ my $g = o(
     socket => undef,
     am_child => 0,
     xres    => cr 'xres',
+    gloop   => Glib::MainLoop->new,
 );
 
-my $gloop = Glib::MainLoop->new;
+$g->socket(make_socket());
 
-my $sock = Fish::Socket::Server::unix->new(
-    path => $g->socket_path,
-    unlink => 0,
-);
+add_socket_listener() or
+    error "Couldn't add socket listener.";
 
-$g->socket($sock);
-sys sprintf qq, chmod a+w "%s" ,, $g->socket_path;
+go(),
+    exit if $opt->f;
 
-my $fileno = fileno($sock->listener);
-error "Invalid fileno", R $fileno if !$fileno || $fileno == -1;
+info "Forking.";
 
-Glib::IO->add_watch($fileno, 'in', sub {
-    # Blocking, but we know there's something waiting.
-    my $s = $sock->listen;
+# --- fork and kill parent.
+exit 0 if forkk;
 
-    if (not defined $s) {
-        return 1;
-    }
+$g->am_child(1);
 
-    chomp $s;
-    $sock->say('');
-
-    info 'Got message on socket:', $s if DEBUG;
-
-    if ($s eq 'toggle') {
-        $g->state ? hide() : show();
-    }
-    elsif ($s eq 'toggle-fill') {
-        $g->state ? hide() : show({fill => 1});
-    }
-    elsif ($s eq 'show') {
-        show();
-    }
-    elsif ($s eq 'show-fill') {
-        show({fill => 1});
-    }
-    elsif ($s eq 'hide') {
-        hide();
-    }
-    1;
-});
-
-if ($opt->f) {
-    go();
-}
-else {
-    info "Forking.";
-    my $pid = fork // error("Couldn't fork", R $!);
-
-    $pid ?
-        exit 0 : 
-        $g->am_child(1), go(); 
-}
-
+go(); 
 exit;
 
 END {
-    my $sock;
-    if ($opt->f or ($g and $g->am_child)) {
-        if ($g and $sock = $g->socket) {
-            info 'Destroying socket';
-            $sock->DESTROY; 
-        }
-    }
+    cleanup_socket();
 }
+
 
 # - - -
 
@@ -206,9 +178,10 @@ sub go {
 
     async { clock_thread(\$hour, \$min, \$sec) }->detach;
 
-    while (! x_is_running()) {
-        info "X doesn't seem to be running, sleeping $X_SLEEP";
-        sleep $X_SLEEP;
+    while (not x_is_running()) {
+        my $xs = $config->x_sleep;
+        info "X doesn't seem to be running, sleeping", Y $xs;
+        sleep $xs;
     }
 
     use_late_modules(); # Fish::Clock::Clock
@@ -224,17 +197,17 @@ sub go {
 
     info "Ready.";
 
-    $gloop->run 
+    $g->gloop->run;
 } 
 
 sub timeout { shift if $_[0] eq __PACKAGE__;
     my ($ms, $sub) = @_;
-    Glib::Timeout->add($ms, $sub);
+    Glib::Timeout->add($ms, $sub) or iwar "Couldn't add glib timeout";
 }
 
 sub remove_timeout {
     my ($id) = @_;
-    Glib::Source->remove($id);
+    Glib::Source->remove($id) or iwar "Couldn't remove glib timeout", BR $id;
 }
 
 sub show {
@@ -248,10 +221,11 @@ bench_start 'show';
     $g->clock->fill($fill);
 
     my $t1 = time;
-    $g->clock->show or warn, next;
+    $g->clock->show or
+        iwar, next;
     $g->state(1);
 
-    my $default_time = cr('active-ms');
+    my $default_time = cr 'active-ms';
     my $sl = max(0, $default_time - (time - $t1));
     info '$sl (timeout) was', $sl if DEBUG;
 
@@ -260,7 +234,9 @@ bench_start 'show';
         return unless $g->state;
         info 'hiding in timeout' if DEBUG;
         hide();
-        0;
+        $g->cur_timeout(undef);
+
+        0
     });
 bench_end 'show';
 
@@ -301,6 +277,8 @@ sub clock_thread {
             }
         }
         info 'hr', $$hourr, 'm', $$minr, 's', $$secr if DEBUG;
+
+        # --- sleep the remainder of 1 second.
         my $sleep = 1 - (time - $t1);
         sleep $sleep unless $sleep <= 0;
     }
@@ -314,6 +292,70 @@ sub update_time_sys {
 
     (int $hr, int $m, int $s)
 }
+
+sub make_socket {
+    my $socket = Fish::Socket::Server::unix->new(
+        path => $g->socket_path,
+        unlink => 0,
+    );
+    sys sprintf qq, chmod a+w "%s" ,, $g->socket_path;
+
+    $socket
+}
+
+sub update_uid_and_home {
+    my $user = Fish::Clock::Conf->pre_init($config->main_conf);
+    my $name = change_user($user);
+    my $home = home($name);
+
+    s, __HOME__ ,$home,gx for @{ $config->conf_files };
+
+    if (DEBUG) {
+        info 'change to user:', $user;
+        info 'name', $name;
+        info 'home', $home;
+        info 'conf_files:', d $config->conf_files;
+    }
+
+}
+
+sub add_socket_listener {
+    my $socket = $g->socket;
+    my $fileno = fileno($socket->listener);
+    return war "Invalid fileno", R $fileno if not $fileno or $fileno == -1;
+
+    Glib::IO->add_watch($fileno, 'in', sub {
+        # Blocking, but we know there's something waiting.
+        my $s = $socket->listen;
+
+        if (not defined $s) {
+            return 1;
+        }
+
+        chomp $s;
+        $socket->say('');
+
+        info 'Got message on socket:', $s if DEBUG;
+
+        if ($s eq 'toggle') {
+            $g->state ? hide() : show();
+        }
+        elsif ($s eq 'toggle-fill') {
+            $g->state ? hide() : show({fill => 1});
+        }
+        elsif ($s eq 'show') {
+            show();
+        }
+        elsif ($s eq 'show-fill') {
+            show({fill => 1});
+        }
+        elsif ($s eq 'hide') {
+            hide();
+        }
+        1;
+    })
+}
+
 
 sub change_user {
     my ($u) = @_;
@@ -334,32 +376,20 @@ sub change_user {
     return $name;
 }
 
-# Assumes already setuid'd
+# --- get the home dir for a user.
+#
+# assumes already setuid'd
+
 sub home {
     my ($user) = @_;
-    # wrong -- can't change user
-    #return $ENV{HOME} if $ENV{HOME};
-    my $home_dir;
-    my $found;
-    while ( my ($name,$passwd,$uid,$gid, $quota,$comment,$gcos,$dir,$shell,$expire) = getpwent ) {
+    while ( my ($name,$passwd,$uid,$gid,$quota,$comment,$gcos,$dir,$shell,$expire) = getpwent ) {
         if ($name eq $user) {
-            $found = 1;
-            $home_dir = $dir;
-            last;
+            return war "Dir", BR $dir, "doesn't seem to be a valid home dir"
+                unless -d $dir;
+            return $dir;
         }
     }
-    if (!$found) {
-        war "Can't find home dir for user", BR $user;
-    }
-    else {
-        if (-d $home_dir) {
-            return $home_dir;
-        }
-        else {
-            war "Dir", BR $home_dir, "doesn't seem to be a valid home dir";
-        }
-    }
-    return; # error
+    war "Can't find home dir for user", BR $user;
 }
 
 sub check_unique {
@@ -380,11 +410,30 @@ sub check_unique {
     error @e if @e;
 }
 
+# --- dies.
 sub use_late_modules {
-    eval "use $_; 1" or error "Can't use", R $_, "$@" for @LATE_USE;
+    eval "use $_; 1" or error "Can't use", R $_, "$@" for list $config->late_use;
 }
 
 sub x_is_running {
     $ENV{DISPLAY} = ":0"; # XX
     return sys_ok qq, xset q ,, {quiet => 1, killerr => 1},;
+}
+
+# --- dies if system call fails.
+sub forkk {
+    my $pid = fork // error "Couldn't fork", R $!;
+
+    $pid
+}
+
+# --- called from END -- $opt and $g not guaranteed to exist.
+sub cleanup_socket {
+    my $sock;
+    if (($opt and $opt->f) or ($g and $g->am_child)) {
+        if ($g and $sock = $g->socket) {
+            info 'Destroying socket';
+            $sock->DESTROY; 
+        }
+    }
 }
