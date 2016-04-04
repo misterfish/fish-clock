@@ -1,38 +1,76 @@
-G() {
-    echo -n [32m"${@}"[0m
+if which bullet >/dev/null; then
+    bullet="$(bullet)"
+else
+    bullet=٭
+fi
+
+_force_colors=
+
+force_colors() {
+    _force_colors=yes
 }
-BG() {
-    echo -n [92m"${@}"[0m
+
+brackl() {
+    printf "〈" # 3008
 }
-Y() {
-    echo -n [33m"${@}"[0m
+
+brackr() {
+    printf "〉" # 3009
 }
-BY() {
-    echo -n [93m"${@}"[0m
+
+color() {
+    c=$1
+    shift
+
+    doit=yes
+
+    if [ -n "$force_colors" ]; then
+        doit=yes
+    fi
+
+    # --- difficult to make it work right for printf.
+    if [ "$doit" = 'yes' ]; then
+        echo -n [${c}m"${@}"[0m
+    else
+        echo -n "$@"
+    fi
 }
-R() {
-    echo -n [31m"${@}"[0m
+
+green() {
+    color 32 "$@"
 }
-BR() {
-    echo -n [91m"${@}"[0m
+bright-green() {
+    color 92 "$@"
 }
-B() {
-    echo -n [34m"${@}"[0m
+yellow() {
+    color 33 "$@"
 }
-BB() {
-   echo -n [94m"${@}"[0m
+bright-yellow() {
+    color 93 "$@"
 }
-M() {
-    echo -n [35m"${@}"[0m
+red() {
+    color 31 "$@"
 }
-BM() {
-    echo -n [95m"${@}"[0m
+bright-red() {
+    color 91 "$@"
 }
-CY() {
-    echo -n [36m"${@}"[0m
+blue() {
+    color 34 "$@"
 }
-BCY() {
-    echo -n [96m"${@}"[0m
+bright-blue() {
+    color 94 "$@"
+}
+magenta() {
+    color 35 "$@"
+}
+bright-magenta() {
+    color 95 "$@"
+}
+cyan() {
+    color 36 "$@"
+}
+bright-cyan() {
+    color 96 "$@"
 }
 
 doit() {
@@ -40,20 +78,36 @@ doit() {
     "$@"
 }
 
+shell-quote() {
+    for i in "$@"; do
+        # --- ] has to be the first thing in the list.
+        if [[ "$i" =~ [][:space:]\$\!\&\*\(\)\{\[\}\<\>\?\~\`\'\"] ]] ; then
+            # --- if it contains a special char or a space, do the quoting.
+            #
+            # simple algorithm: substitute every single quote with single
+            # quote + backslash + single quote + single quote, then surround
+            # the entire thing with single quotes.
+            #
+            # regex preceded by / to mean global.
+            #
+            # (yes really).
+            printf -- "%s%s%s " \' "${i//\'/\'\\\'\'}"  \'
+        else
+            printf -- "$i "
+        fi
+    done
+}
+
 cmd() {
-    G "* "
-    echo "$@"
+    green "$bullet "
+    printf "%s\n" "$(shell-quote "$@")"
     "$@"
 }
 
 cmd_eval() {
-    G "* "
+    green "$bullet "
     echo "$@"
     eval "$@"
-}
-
-quiet() {
-    eval "$@ >/dev/null 2>&1"
 }
 
 push() {
@@ -77,7 +131,7 @@ assert_arg() {
 }
 
 info() {
-    BB '* '
+    bright-blue "$bullet "
     if [ "$1" = '-n' ]; then
         shift
         echo -n "$@"
@@ -87,12 +141,62 @@ info() {
 }
 
 error() {
-    R '* '
-    echo "Error: $@"
+    red "$bullet "
+    echo >&2 "Error: $@"
     exit 1
 }
 
 warn() {
-    BR '* '
-    echo "$@"
+    printf >&2 "%s %s\n" `bright-red "$bullet"` "$@"
+}
+
+infof() {
+    local e
+    local one="$1"
+    shift
+    printf -v e "$one" "$@"
+    info "$e"
+}
+
+errorf() {
+    local e
+    local one="$1"
+    shift
+    printf -v e "$one" "$@"
+    error "$e"
+}
+
+warnf() {
+    local e
+    local one="$1"
+    shift
+    printf -v e "$one" "$@"
+    warn "$e"
+}
+
+press_enter() {
+    perl -e "print 'Press enter to continue. '; <STDIN>"
+}
+
+waitfor() {
+    local proc
+    for proc in "$@"; do
+        while ! quiet ps -C "$proc"; do
+            printf "Still waiting for %s\n" $(yellow "$proc")
+            sleep 1
+        done
+    done
+}
+
+# --- dies.
+chd() {
+    dir="$1"
+    if [ ! -e "$dir" ]; then
+        errorf "Dir %s doesn't exist" "$(red "$dir")"
+    fi
+    cd "$dir"
+    infof "Chdir %s" "$(green "$dir")"
+    if [ $? != 0 ]; then
+        errorf "Couldn't cd to dir %s" "$(red "$dir")"
+    fi
 }

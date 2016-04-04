@@ -1,10 +1,33 @@
-git submodule init
-git submodule update --remote --recursive
-cd libmain/fish_clock_xs
-perl Makefile.PL && make 
-cd ../..
+#!/bin/bash -e
 
-# FIXME, this sucks
-sudo mkdir /usr/share/fish-clock -p
-sudo cp conf/config-base /usr/share/fish-clock/config
-cp -f conf/config ~/.fish-clock-config
+dirname=$(dirname "$0")
+. "$(dirname "$0")"/functions
+
+USAGE="Usage: $0"
+
+arg="$1"
+
+if [ "$arg" = -h ]; then
+    warn $USAGE
+    exit 0
+else
+    /bin/true
+fi
+
+chd "$dirname"
+
+info 'Updating submodules.'
+cmd git submodule init
+cmd git submodule update --remote --recursive
+
+info 'Compiling C code.'
+cmd mkdir -p log
+chd libmain/fish_clock_xs
+cmd perl Makefile.PL >../../log/compile-out 2>../../log/compile-err
+cmd make >>../../log/compile-out 2>>../../log/compile-err
+chd ../..
+
+info 'Copying config file to home.'
+cmd cp -f conf/fish-clock-config ~/.fish-clock-config
+
+info $(printf "All done. '%s' to run." $(yellow "$dirname/fish-clock"))
