@@ -2,48 +2,62 @@ package Fish::Clock::Clock;
 
 use 5.18.0;
 
-BEGIN {
-    use File::Basename;
-    push @INC, dirname $0;
-}
-
-$| = 1;
-
 use Moo;
 use MooX::Types::MooseLike::Base ':all';    
 
 use Date::Calc 'Add_Delta_DHMS';
 use List::Util 'max', 'min';
+use Time::HiRes qw, time sleep ,;
+
 use Math::Trig ':pi';
 use X11::Aosd ':all';
-use Time::HiRes qw, time sleep ,;
 
 use Fish::Class 'o';
 use Fish::Utility;
 use Fish::Utility_l qw, pairwiser ,;
+use Fish::Conf;
 
-use Fish::Clock::Conf 'c', 'cr', 'cr_list';
 use fish_clock_xs;
 
-# XX
-use constant DEBUG => 0;
+sub cr_list(_) { &main::cr_list }
+sub cr(_) { &main::cr }
+sub c(_) { &main::c }
 
-use constant DEBUG_TIME => 1;
+use constant DEBUG => main::DEBUG;
 
-# jittery when 1. but like this it takes more mouse space.
+# --- try to keep the boundary cropped and take less mouse space, but it's jittery when it's 1.
+#
+# doing it as a constant because it's in each animation frame.
 use constant RESIZE_BOUNDS_ON_ZOOM => 0;
 
-use constant RANDOM_TIME_ON_ZOOM_OUT => 0; # really random
+# --- use a really random time (crazy hands).
+#
+# doing it as a constant because it's in each animation frame.
+use constant RANDOM_TIME_ON_ZOOM_OUT => 0;
 
-# res -> radius_out
-# toaster, xres = 1920, radius_out => 600
-# venkel, xres = 1024, radius_out => 300
+# --- res -> radius_out calculation:
+#
+# some nice ones:
+#
+# xres = 1920 => radius_out = 600
+# xres = 1024 => radius_out = 300
+#
 # 1920a + b = 600
 # 1024a + b = 300
-# a = 300 / 894 = .34
+# a = 300 / 896 = .335
 # b = -43
 
-# Try to use g for config stuff, self for changey stuff. XX
+my $config = o(
+    radius_slope => .335,
+    radius_int => -43,
+);
+
+# --- in this class $g is for things which depend on the config files, and
+# everything else goes to instance variables, though the line can be blurry.
+#
+# actually we could probably even just get rid of $g and read directly from
+# the config object.
+
 my $g = o(
     radius_out => undef,
     num_frames_out => undef,
@@ -52,7 +66,7 @@ my $g = o(
     scale_radius_out => undef,
     radius => undef,
 
-    # should stay global
+    # --- should stay global.
     transparency => undef,
 
     hand_length_major => undef,
@@ -85,18 +99,15 @@ my $g = o(
 
 has hour => (
     is  => 'ro',
-    #isa => 'Ref',
     isa => Ref,
 );
-# s because min exists
+# --- call it 'mins' because 'min' exists.
 has mins => (
     is  => 'ro',
-    #isa => 'Ref',
     isa => Ref,
 );
 has sec => (
     is  => 'ro',
-    #isa => 'Ref',
     isa => Ref,
 );
 
@@ -105,42 +116,35 @@ has xres => (
     isa => Int,
 );
 
-# General property, whether to do any filling at all.
+# --- general property: whether to do any filling at all.
 has fill => (
     is => 'rw',
-    #isa => 'Bool',
     isa => Bool,
 );
 
 has _aosd => (
     is  => 'rw',
-    #isa => 'X11::Aosd',
 );
 has _radius => (
     is  => 'rw',
-    #isa => 'Num',
     isa => Num,
 );
 has _width => (
     is  => 'rw',
-    #isa => 'Num',
     isa => Num,
 );
 has _height => (
     is  => 'rw',
-    #isa => 'Num',
     isa => Num,
 );
 has _transparency => (
     is  => 'rw',
-    #isa => 'Num',
     isa => Num,
 );
 
-# in = -1, out = 1, no = 0
+# --- in = -1, out = 1, no = 0.
 has _zooming => (
     is  => 'rw',
-    #isa => 'Int',
     isa => Int,
 );
 has _hour_override => (
@@ -153,26 +157,24 @@ has _min_override => (
 
 has _delta_min_for_random_zoom_in => (
     is => 'rw',
-    #isa => 'Num',
     isa => Num,
 );
 
-# render loop
+# --- render loop.
 
-# whether to fill during this render frame.
+# ------ whether to fill during this render frame.
 has _do_fill => (
     is => 'rw',
-    #isa => 'Bool',
     isa => Bool,
 );
+
 has _color_circle_1 => (
     is => 'rw',
-    #isa => 'ArrayRef',
     isa => ArrayRef,
 );
+
 has _color_circle_2 => (
     is => 'rw',
-    #isa => 'ArrayRef',
     isa => ArrayRef,
 );
 
@@ -182,43 +184,32 @@ sub BUILD {
     info 'n frames in', $g->num_frames_in if DEBUG;
     info 'n frames out', $g->num_frames_out if DEBUG;
 
-    # config XX
-    if (0) {
-        my $r = Fish::Clock::Resolution->new;
-        if ( my $xres = $r->x ) {
-            $g->radius_out( $xres * .34 - 43 ); # config XX
-        }
-        else {
-            warn "Couldn't get xres.";
-            $g->radius_out(300);
-        }
-    }
-    $g->radius_out( $self->xres * .34 - 43 ); # config XX
+    $g->radius_out($self->xres * $config->radius_slope + $config->radius_int);
     $self->_radius($g->radius_out);
 
-    # sets _aosd
+    # --- sets _aosd.
     $self->init;
 }
 
+# --- animation frame.
+
 sub update {
     my ($self) = @_;
-    my $aosd = $self->_aosd or warn, return;
+    my $aosd = $self->_aosd or
+        return iwar();
 
-    # so it stays centered, not necessary
     $self->update_boundaries if RESIZE_BOUNDS_ON_ZOOM;
 
-    # Trigger renderer.
-    # render is (maybe) faster than update, but the very last frame won't be
-    # shown.
+    # --- trigger next frame.
+    #
+    # use update instead of render, to be sure the last frame is shown.
 
-    #$aosd->render;
     $aosd->update;
 }
 
 sub show {
     my ($self) = @_;
 
-    #main::bench_start('show-clock.1');
     $self->update_config;
 
     my $aosd = $self->_aosd;
@@ -227,12 +218,7 @@ sub show {
 
     $self->_do_fill($self->fill ? cr 'fill-on-zoom-in' : 0);
 
-    #main::bench_end('show-clock.1');
-    #main::bench_start 'show-clock.2';
-
     $aosd->show;
-
-    #main::bench_end 'show-clock.2';
 
     my $r;
     my $tr = .001;
@@ -252,15 +238,13 @@ sub show {
     main::timeout(cr 'animate-interval', sub {
         $_i++;
 
-        #main::bench_start 'show-clock.3.1';
-
-        # Start at random amount below actual, then go up to actual evenly.
+        # --- start at random amount below actual, then go up to actual evenly.
         if (my $rm = $g->random_min) {
 
             my ($hr_new, $min_new);
             if ($_i == 0) {
                 (undef, undef, undef, $hr_new, $min_new) = Add_Delta_DHMS(10, 10, 10, $$hour, $$min, 0, 0, 0, -1 * $rm, 0);
-                # will overshoot if very small random_min given.
+                # --- will overshoot if very small random_min given.
                 my $dm = max 1, $rm / $num_frames;
 
                 $self->_delta_min_for_random_zoom_in($dm);
@@ -286,13 +270,7 @@ sub show {
         $self->set_radius($r);
         $self->_transparency($_tr);
 
-        #main::bench_end 'show-clock.3.1';
-
-        #main::bench_start 'show-clock.3.2';
-
         $self->update;
-
-        #main::bench_end 'show-clock.3.2';
 
         if ($_i == $num_frames) {
             $self->_zooming(0);
@@ -305,8 +283,6 @@ sub show {
 
 sub show_final {
     my ($self) = @_;
-
-    #main::bench_start 'show-clock.4';
 
     $self->_hour_override(undef);
     $self->_min_override(undef);
@@ -329,8 +305,6 @@ sub show_final {
     }
 
     $self->update;
-        
-    #main::bench_end 'show-clock.4';
 }
 
 sub hide {
@@ -418,10 +392,10 @@ sub init {
 
     $self->update_boundaries;
 
-    # Doesn't work.
+    # --- doesn't work. xxx
     $aosd->set_hide_upon_mouse_event(1);
 
-    # These don't change (currently).
+    # --- these don't change (currently).
     my $height = $self->_height;
     my $width = $self->_width;
 
@@ -431,8 +405,6 @@ sub init {
 
     $aosd->set_renderer( sub { 
         my ($cr) = @_;
-
-        #main::bench_start 'renderer-config';
 
         my %a = (
             hour => $self->_hour_override // $$hour, 
@@ -448,17 +420,11 @@ sub init {
         #Devel::Peek::Dump($cr);
         fish_clock_xs::render_config(\%a);
 
-        #main::bench_end 'renderer-config';
-        #main::bench_start 'renderer-render';
-
         fish_clock_xs::render_render($cr);
-
-        #main::bench_end 'renderer-render';
-
     });
 }
         
-# also set w and h
+# --- also set w and h.
 sub set_radius {
     my ($self, $r) = @_;
     $self->_radius($r);
@@ -470,25 +436,24 @@ sub set_radius {
 }
 
 sub get_fancy_r {
-    # $t = parameter
-    # $n = num frames
+    # --- $t = parameter, $n = num frames.
     my ($t, $n) = @_;
 
     my $min = $g->radius_min;
     my $sf = $g->stretch_factor;
 
-    # t = n => sf term = 1
+    # --- t = n => sf term = 1
     my $sf_adj = 1 - sqrt(1 * $sf);
 
     max $min,
-        # y-adj
+        # --- y-adj.
         $g->radius + 
-        # wave
+        # --- wave.
         ($g->radius_out - $g->radius) * cos (2*pi*$t/$n * 
-        # wave stretcher
+        # --- wave stretcher.
             (($t/$n * $sf)**2 + $sf_adj)
         ) *
-        # envelope
+        # --- envelope.
         (- 1.0 / $n * $t + 1)
 
 }
@@ -546,7 +511,6 @@ sub update_config {
         $self->_color_circle_1(cr_list 'color-circle-1');
         $self->_color_circle_2(cr_list 'color-circle-2');
     }
-    # fill $g->radius_calc
     calc_fancy_r($num_frames_in);
 
     $self->init_renderer;
@@ -582,7 +546,6 @@ sub init_renderer {
 }
 
 sub log10 { log(shift)/log(10) }
-
 
 __PACKAGE__->meta->make_immutable;
 

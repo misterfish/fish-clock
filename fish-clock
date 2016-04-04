@@ -68,6 +68,10 @@ sub bench_end(_)    { if (BENCHMARK) { return Fish::Clock::Utility::bench_end(@_
 sub bench_end_pr(_) { if (BENCHMARK) { return Fish::Clock::Utility::bench_end_pr(@_) } }
 sub bench_pr(_)     { if (BENCHMARK) { return Fish::Clock::Utility::bench_pr(@_) } }
 
+sub cr_list(_);
+sub cr(_);
+sub c(_);
+
 use Fish::Opt 'opt';
 use Fish::Utility;
 Fish::Utility->verbose_cmds(0);
@@ -76,7 +80,7 @@ use Fish::Utility_m 'is_multiple';
 use Fish::Class 'o';
 use Fish::Socket::Server::unix;
 
-use Fish::Clock::Conf 'cr';
+use Fish::Conf;
 
 my $config = o(
     # --- modules to require later (at runtime).
@@ -88,32 +92,27 @@ my $config = o(
         'Fish::Clock::Clock',
     ],
 
-    required_conf => [
+    conf_required => [
         'socket-path',
+        'xres',
         'active-ms',
+        #XXX
     ],
 
-    main_conf => '/usr/share/fish-clock/config',
-
-    conf_files => undef,
+    conf_file_default => "$ENV{HOME}/.fish-clock-config",
 
     x_sleep => 1,
-
 );
-
-$config->conf_files([
-    $config->main_conf,
-    "__HOME__/.fish-clock-config",
-]);
 
 my $opt = opt {
     h   => 'f',
     v   => 'f',
     f   => 'f',
     l   => 'f',
-} or error help();
+    c   => 's',
+} or error usage();
 
-info(help()),
+info(usage()),
     exit if $opt->h;
 
 Fish::Utility->info_level($opt->v ? 1 : 0);
@@ -121,34 +120,30 @@ Fish::Utility->info_level($opt->v ? 1 : 0);
 # --- die if there are other instances running.
 check_unique();
 
-# --- get username based on main config, call setuid(), and update __HOME__
-# placeholders in config.
-
-update_uid_and_home();
-
-Fish::Clock::Conf->init({
-    required    => $config->required_conf,
-    conf_files  => $config->conf_files,
-    dump        => $opt->l,
-});
-
 exit if $opt->l;
 
 my $g = o(
     state => 0,
     clock => undef,
+    conf_file => $opt->c // $config->conf_file_default,
+    conf => undef,
     cur_timeout => undef,
-    socket_path => cr 'socket-path',
+    socket_path => undef,
     socket => undef,
     am_child => 0,
-    xres    => cr 'xres',
+    xres    => undef,
     gloop   => Glib::MainLoop->new,
 );
 
+$g->conf(init_conf());
+$g->socket_path(cr 'socket-path');
+$g->xres(cr 'xres');
 $g->socket(make_socket());
 
 add_socket_listener() or
     error "Couldn't add socket listener.";
+
+add_config_timeout(1000);
 
 go(),
     exit if $opt->f;
@@ -221,8 +216,6 @@ sub show {
     my $fill = $opts->{fill};
     return if $g->state;
 
-bench_start 'show';
-
     $g->clock->fill($fill);
 
     my $t1 = time;
@@ -231,6 +224,7 @@ bench_start 'show';
     $g->state(1);
 
     my $default_time = cr 'active-ms';
+    say 'dt', $default_time;
     my $sl = max(0, $default_time - (time - $t1));
     info '$sl (timeout) was', $sl if DEBUG;
 
@@ -243,11 +237,6 @@ bench_start 'show';
 
         0
     });
-bench_end 'show';
-
-bench_pr for qw, renderer-config renderer-render show 
-    show-clock.1 show-clock.2 show-clock.3.1 show-clock.3.2 show-clock.4
-,;
 }
 
 sub hide {
@@ -257,8 +246,8 @@ sub hide {
     $g->state(0);
 }
 
-sub help {
-    return "Usage: $0 [-h] [-v for verbose] [-f to stay in foreground] [-l to dump config and quit].";
+sub usage {
+    sprintf "Usage: $0 [-h] [-v for verbose] [-c conf-file, defaults to %s] [-f to stay in foreground] [-l to dump config and quit].", Y $config->conf_file_default
 }
 
 # --- updates the global, shared variables $hour, $min, $sec.
@@ -310,22 +299,6 @@ sub make_socket {
     $socket
 }
 
-sub update_uid_and_home {
-    my $user = Fish::Clock::Conf->pre_init($config->main_conf);
-    my $name = change_user($user);
-    my $home = home($name);
-
-    s, __HOME__ ,$home,gx for @{ $config->conf_files };
-
-    if (DEBUG) {
-        info 'change to user:', $user;
-        info 'name', $name;
-        info 'home', $home;
-        info 'conf_files:', d $config->conf_files;
-    }
-
-}
-
 sub add_socket_listener {
     my $socket = $g->socket;
     my $fileno = fileno($socket->listener);
@@ -362,39 +335,17 @@ sub add_socket_listener {
     })
 }
 
-sub change_user {
-    my ($u) = @_;
-    my ($name, $id);
-    if ($u !~ /\D/) {
-        $name = getpwuid($u) // 
-            error "Can't find uid", R $u;
-        $id = $u;
-    }
-    else {
-        $id = getpwnam($u) // 
-            error "Can't find user", R $u;
-        $name = $u;
-    }
-    setuid($id) // 
-        error sprintf "Can't change uid to %s: %s", R $id, $!;
-    infof "Changed user -> %s [%s]", CY $id, G $name;
-    return $name;
-}
-
-# --- get the home dir for a user.
+# --- check the timestamps on the config file(s) every second or so and
+# reload if changed.
 #
-# assumes already setuid'd
+# this is in the end much less complicated than putting an IO watch on them.
+sub add_config_timeout {
+    my ($time) = @_;
+    Glib::Timeout->add($time, sub {
+        $g->conf->update_config;
 
-sub home {
-    my ($user) = @_;
-    while ( my ($name,$passwd,$uid,$gid,$quota,$comment,$gcos,$dir,$shell,$expire) = getpwent ) {
-        if ($name eq $user) {
-            return war "Dir", BR $dir, "doesn't seem to be a valid home dir"
-                unless -d $dir;
-            return $dir;
-        }
-    }
-    war "Can't find home dir for user", BR $user;
+        1
+    });
 }
 
 sub check_unique {
@@ -443,3 +394,17 @@ sub cleanup_socket {
         }
     }
 }
+
+sub init_conf {
+    my $c = Fish::Conf->new(
+        default_block => 'fish-clock',
+        conf_required => $config->conf_required,
+        conf_files => [$g->conf_file],
+    );
+
+    $c
+}
+
+sub cr_list(_) { $g->conf->cr_list(shift) }
+sub cr(_) { $g->conf->cr(shift) }
+sub c(_) { $g->conf->c(shift) }
