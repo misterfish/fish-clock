@@ -224,7 +224,6 @@ sub show {
     $g->state(1);
 
     my $default_time = cr 'active-ms';
-    say 'dt', $default_time;
     my $sl = max(0, $default_time - (time - $t1));
     info '$sl (timeout) was', $sl if DEBUG;
 
