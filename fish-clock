@@ -207,7 +207,10 @@ sub timeout { shift if $_[0] eq __PACKAGE__;
 
 sub remove_timeout {
     my ($id) = @_;
-    Glib::Source->remove($id) or iwar "Couldn't remove glib timeout", BR $id;
+
+    # --- don't complain if timeout has already disappeared.
+    no warnings;
+    Glib::Source->remove($id);
 }
 
 sub show {
