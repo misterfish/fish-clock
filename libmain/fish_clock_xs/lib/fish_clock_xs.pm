@@ -9,7 +9,6 @@ our $VERSION = '0.01';
 
 use base 'Exporter';
 BEGIN { 
-    #our @EXPORT = qw, render ,
     our @EXPORT = qw,,
 }
 

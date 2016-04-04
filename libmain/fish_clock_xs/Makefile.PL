@@ -6,12 +6,13 @@ my @inc = qw,
 ,;
 my $inc = join ' ', uniq @inc;
 
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
+# --- see lib/ExtUtils/MakeMaker.pm for details of how to influence the
+# contents of the Makefile that is written.
+
 WriteMakefile(
    NAME         => 'fish_clock_xs',
-   VERSION_FROM => 'lib/fish_clock_xs.pm', # finds $VERSION
-   # cairo is included by X11::Aosd
+   VERSION_FROM => 'lib/fish_clock_xs.pm',
+   # --- cairo is included by X11::Aosd.
    LIBS         => [qw,,], 
    DEFINE       => '',     # e.g., '-DHAVE_SOMETHING'
    INC          => join(' ', uniq @inc),

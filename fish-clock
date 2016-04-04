@@ -172,17 +172,21 @@ END {
 
 sub go { 
     
+    # --- these are shared with the clock thread, and are also passed to the
+    # constructor of the Clock.
     my $hour :shared = undef;
     my $min :shared = undef;
     my $sec :shared = undef;
 
     async { clock_thread(\$hour, \$min, \$sec) }->detach;
 
+=head
     while (not x_is_running()) {
         my $xs = $config->x_sleep;
         info "X doesn't seem to be running, sleeping", Y $xs;
         sleep $xs;
     }
+=cut
 
     use_late_modules(); # Fish::Clock::Clock
 
@@ -197,6 +201,7 @@ sub go {
 
     info "Ready.";
 
+    # --- enter glib main loop.
     $g->gloop->run;
 } 
 
@@ -256,7 +261,7 @@ sub help {
     return "Usage: $0 [-h] [-v for verbose] [-f to stay in foreground] [-l to dump config and quit].";
 }
 
-# Updates the global, shared variables $hour, $min, $sec.
+# --- updates the global, shared variables $hour, $min, $sec.
 sub clock_thread {
     my ($hourr, $minr, $secr) = @_;
 
@@ -288,9 +293,9 @@ sub update_time_sys {
     info 'Syncing time with system.';
 
     my $time = sys 'date +%I:%M:%S';
-    my ($hr, $m, $s) = split /:/, $time;
+    my ($hr, $m, $s) = split ':', $time;
 
-    (int $hr, int $m, int $s)
+    int $hr, int $m, int $s
 }
 
 sub make_socket {
@@ -298,6 +303,8 @@ sub make_socket {
         path => $g->socket_path,
         unlink => 0,
     );
+
+    # --- we don't provide any security on the socket.
     sys sprintf qq, chmod a+w "%s" ,, $g->socket_path;
 
     $socket
@@ -325,18 +332,17 @@ sub add_socket_listener {
     return war "Invalid fileno", R $fileno if not $fileno or $fileno == -1;
 
     Glib::IO->add_watch($fileno, 'in', sub {
-        # Blocking, but we know there's something waiting.
+        # --- blocking, but we know there's something waiting.
         my $s = $socket->listen;
 
-        if (not defined $s) {
-            return 1;
-        }
+        return 1 unless defined $s;
 
         chomp $s;
         $socket->say('');
 
         info 'Got message on socket:', $s if DEBUG;
 
+        # --- socket commands.
         if ($s eq 'toggle') {
             $g->state ? hide() : show();
         }
@@ -355,7 +361,6 @@ sub add_socket_listener {
         1;
     })
 }
-
 
 sub change_user {
     my ($u) = @_;
@@ -393,12 +398,11 @@ sub home {
 }
 
 sub check_unique {
-    # don't need pid actually, pgrp is good enough.
-    # pgrp is better than pid because you can catch 
-    #  /bin/sh /etc/init.d/fish-clock
-    #  fish-clock
-    # while looks like 2 processes.
-    my @ps = sysll qq| ps -opid=,pgrp= -C $script_name |, { die => 0, killerr => 1, quiet => 1 };
+    # --- pgrp is better than pid because you can catch e.g.:
+    #  -> /bin/sh /etc/init.d/fish-clock
+    #  -> fish-clock
+    # which otherwise looks like 2 processes.
+    my @ps = sysll qq| ps -opid=,pgrp= -C $script_name |, { die => 0, killerr => 1, quiet => 1, };
     my @pids;
     my $my_pgrp = getpgrp;
     for (@ps) {
@@ -415,19 +419,21 @@ sub use_late_modules {
     eval "use $_; 1" or error "Can't use", R $_, "$@" for list $config->late_use;
 }
 
+=head
 sub x_is_running {
     $ENV{DISPLAY} = ":0"; # XX
     return sys_ok qq, xset q ,, {quiet => 1, killerr => 1},;
 }
+=cut
 
-# --- dies if system call fails.
+# --- fork, dying if the system call fails.
 sub forkk {
     my $pid = fork // error "Couldn't fork", R $!;
 
     $pid
 }
 
-# --- called from END -- $opt and $g not guaranteed to exist.
+# --- called from END -- $opt and $g are not guaranteed to exist.
 sub cleanup_socket {
     my $sock;
     if (($opt and $opt->f) or ($g and $g->am_child)) {
