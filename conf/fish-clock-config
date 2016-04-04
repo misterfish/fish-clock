@@ -1,5 +1,9 @@
 [fish-clock]
 
+# --- 11 is a normal clock.
+# num-ticks = 11
+num-ticks = 12
+
 height = 850
 width = 850
 
@@ -21,15 +25,12 @@ stroke-width-hands = 3
 delta-theta-ticks = .5
 delta-theta-hands = 5
 
-# total
+# --- total milliseconds visible when active.
 active-ms = 4500
 
-# 11 is a normal clock.
-#num-ticks = 11
-num-ticks = 12
 major-ticks-every = 3
 
-# as perc of radius
+# --- as percentage of radius.
 hand-length-major = .4
 hand-length-minor = .6
 
@@ -38,21 +39,25 @@ tick-length-minor = 4
 
 num-frames-in = 30
 num-frames-out = 5
-radius = 90
-#radius = 390
-#radius = 590 # bigger than width -> square clock
 
-# num minutes before real time for batclock
-#random-min = 320
+# radius = 390
+# radius = 590 # bigger than width -> square clock
+radius = 90
+
+# --- number of minutes before real time for random clock.
+# random-min = 320
 random-min = 0
 
+# --- use a bouncing effect on show.
 do-wave = 1
 
-# wave stretcher. 1 is simply t squared.
+# --- wave stretcher factor.
+
 # stretch_factor = .5
 # stretch_factor = 1.2
 # stretch-factor = .5
 stretch-factor = .1
+
 radius-min = 30
 
 color-ticks-1 = 0,0,0
@@ -71,8 +76,10 @@ circle-2-x-shift = 1.5
 circle-2-delta-radius = 1
 
 color-hands-1 = 0,0,0
-# kinda yello
+
+# --- kinda yellow.
 color-hands-2 = .8,.7,.1
+
 color-hands-1-filled = 0,0,0
 color-hands-2-filled = .8, .7, .1
 
@@ -80,5 +87,3 @@ fill-on-zoom-in = 1
 fill-on-zoom-out = 0
 
 # vim: isk=@,48-57,_,192-255,45
-
-
