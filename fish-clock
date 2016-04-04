@@ -208,8 +208,10 @@ sub timeout { shift if $_[0] eq __PACKAGE__;
 sub remove_timeout {
     my ($id) = @_;
 
-    # --- don't complain if timeout has already disappeared.
-    no warnings;
+    # --- don't complain if timeout has already disappeared (temporarily
+    # disable warnings).
+    local ($^W) = 0;
+
     Glib::Source->remove($id);
 }
 
