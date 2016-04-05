@@ -1,0 +1,69 @@
+#!/usr/bin/env perl
+
+use 5.18.0;
+
+BEGIN {
+    use File::Basename;
+    my $dirname = dirname $0;
+    unshift @INC, $dirname;
+    unshift @INC, $dirname . '/../libextra/fish-lib-perl';
+    $0 = basename $0;
+}
+
+use utf8;
+
+use IO::Socket::UNIX 'SOCK_STREAM';
+
+use Fish::Opt 'opt';
+use Fish::Class 'o';
+use Fish::Utility;
+use Fish::Utility_l 'list';
+Fish::Utility->verbose_cmds(1);
+
+my $config = o(
+    socket_path_default => '/tmp/.fishclock-socket',
+    cmds => [
+        'show', 'hide', 'toggle',
+    ],
+);
+
+my $USAGE = sprintf "Usage: $0 [-s socket-path, defaults to %s] { show | hide | toggle }", $config->socket_path_default;
+
+my $opt = opt {
+    h   => 'f',
+    s   => 's',
+} or error $USAGE;
+
+info($USAGE), 
+    exit if $opt->h;
+
+my $cmd = shift;
+error $USAGE if @ARGV or not $cmd;
+
+my $socket_path = $opt->s // $config->socket_path_default;
+
+my %cmds = map { $_ => 1 } (list $config->cmds);
+
+error "Socket path", BR $socket_path, "does not exist." unless -e $socket_path;
+error "Socket path", BR $socket_path, "is not a socket." unless -S $socket_path;
+
+error "Invalid command", BR $cmd unless $cmds{$cmd};
+
+info '𝄓 socket:', Y $socket_path;
+info '𝄓 message:', CY $cmd;
+
+my $response = send_msg($socket_path, $cmd);
+
+exit;
+
+sub send_msg {
+    my ($socket_path, $msg) = @_;
+    my $client = IO::Socket::UNIX->new(
+        Type => SOCK_STREAM,
+        Peer => $socket_path,
+    ) or return war "Can't create socket client.";
+
+    say $client $msg;
+
+    <$client>
+}
