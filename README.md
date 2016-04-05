@@ -1,5 +1,5 @@
 # fish-clock
-Animated and customisable on-screen clock, with nice effects and socket-driven commands.
+Animated and customisable on-screen clock, with fast Cairo-rendered graphics in C, real X transparency, and socket-driven commands.
 
 By default it comes with 13 ticks, but if I hadn't told you, you wouldn't
 have noticed.
