@@ -1,3 +1,0 @@
-[submodule "libextra/fish-lib-perl"]
-	path = libextra/fish-lib-perl
-	url = ssh://git@github.com/misterfish/fish-lib-perl
