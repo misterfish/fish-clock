@@ -1,0 +1,3 @@
+[submodule "libextra/fish-lib-perl"]
+	path = libextra/fish-lib-perl
+	url = https://github.com/misterfish/fish-lib-perl
