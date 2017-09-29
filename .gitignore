@@ -3,6 +3,8 @@
 
 *.o
 *.so
+*.bs
+
 Makefile.old
 libmain/fish_clock_xs/MYMETA.json
 libmain/fish_clock_xs/MYMETA.yml
