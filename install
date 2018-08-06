@@ -18,7 +18,7 @@ chd "$dirname"
 
 info 'Updating submodules.'
 cmd git submodule init
-cmd git submodule update --remote --recursive
+cmd git submodule update --recursive
 
 info 'Compiling C code.'
 cmd mkdir -p log
