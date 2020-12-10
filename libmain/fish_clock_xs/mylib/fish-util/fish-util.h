@@ -58,7 +58,9 @@ void disable_colors();
 void sys_die(bool b);
 void sys_verbose(bool b);
 
-char *_s, *_t, *_u, *_v, *_w;
+// char *_s, *_t, *_u, *_v, *_w;
+extern char *_s, *_t, *_u, *_v, *_w;
+
 void fish_();
 
 double time_hires();
